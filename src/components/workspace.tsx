@@ -29,7 +29,13 @@ import {
   PanelLeftClose,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { loadDatabase, localWrite, saveRecord } from "@/lib/repository";
+import {
+  loadDatabase,
+  localWrite,
+  saveRecord,
+  saveLeads,
+  createPreview,
+} from "@/lib/repository";
 import {
   stages,
   verifications,
@@ -153,7 +159,7 @@ export default function Workspace() {
   }
   async function updateStage(leads: Lead[], nextStage: Lead["stage"]) {
     const updates = leads.map((l) => ({ ...l, stage: nextStage }));
-    for (const l of updates) await saveRecord("lead", l, user!);
+    await saveLeads(updates, user!);
     commit({
       ...db,
       leads: db.leads.map((l) => updates.find((u) => u.id === l.id) || l),
@@ -183,9 +189,8 @@ export default function Workspace() {
       createdAt: new Date().toISOString(),
       config: defaultConfig(lead),
     };
-    await saveRecord("preview", p, user!);
     const updated = { ...lead, stage: "Demonstração criada" as const };
-    await saveRecord("lead", updated, user!);
+    await createPreview(p, updated);
     commit({
       ...db,
       previews: [p, ...db.previews],
@@ -214,7 +219,7 @@ export default function Workspace() {
     await run(async () => {
       if (f.size > 2_000_000) throw new Error("O arquivo deve ter até 2 MB.");
       const r = importCsv(await f.text(), db.leads);
-      for (const l of r.leads) await saveRecord("lead", l, user!);
+      await saveLeads(r.leads, user!);
       commit({ ...db, leads: [...r.leads, ...db.leads] });
       setImportOpen(false);
       notify(

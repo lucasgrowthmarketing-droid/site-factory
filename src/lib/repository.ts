@@ -52,3 +52,23 @@ export async function saveRecord(
   const { error } = await supabase.from(table).upsert(row);
   if (error) throw new Error(error.message);
 }
+
+// A single database statement keeps CSV imports and bulk stage updates atomic.
+export async function saveLeads(leads: Lead[], owner: string) {
+  if (!supabase || !leads.length) return;
+  const { error } = await supabase
+    .from("business_leads")
+    .upsert(
+      leads.map((lead) => ({ id: lead.id, owner_id: owner, data: lead })),
+    );
+  if (error) throw new Error(error.message);
+}
+
+export async function createPreview(preview: Preview, lead: Lead) {
+  if (!supabase) return;
+  const { error } = await supabase.rpc("create_site_preview", {
+    preview_data: preview,
+    updated_lead: lead,
+  });
+  if (error) throw new Error(error.message);
+}

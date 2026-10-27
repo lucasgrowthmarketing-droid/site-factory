@@ -68,3 +68,32 @@ do $$declare t text;begin
  end loop;
 end$$;
 commit;
+
+-- Generation and stage transition share a transaction. Runs as the authenticated
+-- caller, so RLS is enforced on both tables; no service-role key is required.
+create function public.create_site_preview(preview_data jsonb, updated_lead jsonb) returns void
+language plpgsql security invoker set search_path='' as $$
+begin
+ if auth.uid() is null then raise exception 'Authentication required'; end if;
+ if updated_lead->>'id' is distinct from preview_data->>'leadId' then raise exception 'Lead mismatch'; end if;
+ if not exists(select 1 from public.business_leads where id=(preview_data->>'leadId')::uuid and owner_id=auth.uid() and stage='Qualificado') then raise exception 'Lead must be qualified'; end if;
+ insert into public.site_previews(id,owner_id,lead_id,token,active,config,data)
+ values((preview_data->>'id')::uuid,auth.uid(),(preview_data->>'leadId')::uuid,preview_data->>'token',true,preview_data->'config',preview_data);
+ update public.business_leads set data=updated_lead where id=(preview_data->>'leadId')::uuid and owner_id=auth.uid();
+end;
+$$;
+revoke all on function public.create_site_preview(jsonb,jsonb) from public;
+grant execute on function public.create_site_preview(jsonb,jsonb) to authenticated;
+
+-- Store an immutable history entry whenever lead details change.
+create function public.audit_lead_update() returns trigger
+language plpgsql security invoker set search_path='' as $$
+declare activity_id uuid:=gen_random_uuid(); activity_text text;
+begin
+ if old.data is distinct from new.data then
+ activity_text:=case when old.data->>'stage' is distinct from new.data->>'stage' then 'Etapa: ' || (old.data->>'stage') || ' → ' || (new.data->>'stage') else 'Dados do lead atualizados. Presença digital: ' || (new.data->>'verification') end;
+ insert into public.commercial_activities(id,owner_id,lead_id,data) values(activity_id,new.owner_id,new.id,jsonb_build_object('id',activity_id,'leadId',new.id,'text',activity_text,'createdAt',now()));
+ end if; return new;
+end;
+$$;
+create trigger audit_lead after update on public.business_leads for each row execute function public.audit_lead_update();
