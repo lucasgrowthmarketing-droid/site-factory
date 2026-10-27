@@ -6,11 +6,12 @@ import {
   ArrowRight,
   ArrowUpRight,
   Check,
-  ChevronRight,
+  Bell,
+  House,
+  Monitor,
   Copy,
   ExternalLink,
   Globe,
-  LayoutDashboard,
   Layers3,
   LogOut,
   MoreHorizontal,
@@ -20,7 +21,6 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
-  TrendingUp,
   Users,
   X,
   Scissors,
@@ -52,8 +52,10 @@ import {
   type SiteConfig,
 } from "@/lib/domain";
 import Barber from "./barber";
+import Dashboard, { ActivityList } from "./dashboard";
+import { activityFeed } from "@/lib/dashboard";
 const nav = [
-  ["Dashboard", LayoutDashboard],
+  ["Dashboard", House],
   ["Leads", Users],
   ["Vitrines", Globe],
   ["Pipeline Comercial", KanbanSquare],
@@ -83,7 +85,21 @@ export default function Workspace() {
     [showPreview, setShowPreview] = useState(false),
     [importOpen, setImportOpen] = useState(false),
     [note, setNote] = useState(""),
-    [menu, setMenu] = useState(false);
+    [menu, setMenu] = useState(false),
+    [searchOpen, setSearchOpen] = useState(false),
+    [globalQuery, setGlobalQuery] = useState(""),
+    [activitiesOpen, setActivitiesOpen] = useState(false);
+  const [activityNow] = useState(() => Date.now());
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen((open) => !open);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   const file = useRef<HTMLInputElement>(null);
   const notify = (message: string) => setToast(message);
   useEffect(() => {
@@ -245,7 +261,24 @@ export default function Workspace() {
       (!category || l.category === category) &&
       (!rating || (l.rating !== null && l.rating >= Number(rating))),
   );
-  const qualified = db.leads.filter((l) => l.stage === "Qualificado").length;
+  const feed = activityFeed(db);
+  const query = globalQuery.trim().toLocaleLowerCase("pt-BR");
+  const searchLeads = db.leads
+    .filter(
+      (l) =>
+        !query ||
+        `${l.name} ${l.city} ${l.category} ${l.phone}`
+          .toLocaleLowerCase("pt-BR")
+          .includes(query),
+    )
+    .slice(0, 6);
+  const searchPreviews = db.previews
+    .filter(
+      (p) =>
+        !query ||
+        p.config.businessName.toLocaleLowerCase("pt-BR").includes(query),
+    )
+    .slice(0, 4);
   const previews = db.previews.filter(
     (p) =>
       !search ||
@@ -370,17 +403,6 @@ export default function Workspace() {
           </span>
           sitefactory<span className="mint">.</span>
         </Link>
-        <div className="workspace-name">
-          <span className="workspace-avatar">SF</span>
-          <span>
-            Workspace principal
-            <small>
-              {supabase ? "Operação comercial" : "Ambiente de teste"}
-            </small>
-          </span>
-          <SlidersHorizontal size={15} />
-        </div>
-        <p className="nav-label">WORKSPACE</p>
         <nav>
           {nav.map(([name, Icon]) => (
             <button
@@ -403,16 +425,24 @@ export default function Workspace() {
         <div className="sidebar-bottom">
           <div className="engine-card">
             <span>
-              <Sparkles size={17} /> Feito para escalar
+              <ShieldCheck size={15} />
+              {supabase ? "Sua operação" : "Ambiente de teste"}
             </span>
             <p>
-              Uma infraestrutura.
-              <br />
-              Infinitas possibilidades.
+              {supabase
+                ? "Seu próximo cliente está a uma boa apresentação de distância."
+                : "Explore o fluxo completo. Seus dados ficam salvos neste navegador."}
             </p>
-            <small>
-              Zero IA por demonstração <Check size={12} />
-            </small>
+            <div className="workspace-progress" aria-hidden="true">
+              <span />
+            </div>
+            <button
+              className="secondary"
+              onClick={() => setTab("Configurações")}
+            >
+              {supabase ? "Configurações" : "Configurar minha operação"}
+              <ArrowRight size={14} />
+            </button>
           </div>
           <button
             className="profile"
@@ -424,12 +454,10 @@ export default function Workspace() {
               })
             }
           >
-            <span className="workspace-avatar">{supabase ? "OP" : "TS"}</span>
+            <span className="workspace-avatar">SF</span>
             <span>
-              {supabase ? "Operador" : "Sessão de teste"}
-              <small>
-                {supabase ? "Conta autenticada" : "Dados neste navegador"}
-              </small>
+              SiteFactory
+              <small>{supabase ? "Operador" : "Lucas · modo de teste"}</small>
             </span>
             <LogOut size={16} />
           </button>
@@ -437,247 +465,116 @@ export default function Workspace() {
       </aside>
       <div className="main-area">
         <header className="topbar">
-          <div>
+          <div className="topbar-search-group">
             <button
               className="mobile-toggle icon-button"
               aria-label="Abrir menu"
+              aria-expanded={menu}
               onClick={() => setMenu(!menu)}
             >
               <PanelLeftClose size={20} />
             </button>
-            <span>Workspace</span>
-            <ChevronRight size={13} />
-            <b>{tab}</b>
+            <button
+              className="global-search"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Buscar leads, vitrines ou empresas"
+            >
+              <Search size={17} />
+              <span>Buscar leads, vitrines ou empresas...</span>
+              <kbd>⌘ K</kbd>
+            </button>
           </div>
-          <div>
-            <span className="connection">
-              <span className="status-dot" />
-              {supabase ? "Supabase conectado" : "Modo de teste local"}
-            </span>
-            <span className="avatar">SF</span>
+          <div className="topbar-account">
+            <button
+              className="notification-button"
+              aria-label="Ver atividades recentes"
+              onClick={() => setActivitiesOpen(true)}
+            >
+              <Bell size={20} strokeWidth={1.6} />
+              {feed.length > 0 && <span />}
+            </button>
+            <button
+              className="avatar"
+              aria-label="Configurações do workspace"
+              onClick={() => setTab("Configurações")}
+            >
+              SF
+            </button>
           </div>
         </header>
         <main className="content">
-          <div className="page-heading">
-            <div>
-              <p className="eyebrow">SUA OPERAÇÃO, EM PERSPECTIVA</p>
-              <h1>{tab === "Dashboard" ? "Visão geral" : tab}</h1>
-              <p>
-                {
-                  (
-                    {
-                      Dashboard:
-                        "Acompanhe oportunidades. Crie presenças digitais. Feche negócios.",
-                      Leads:
-                        "O próximo grande cliente pode estar na sua lista.",
-                      Vitrines:
-                        "Cada negócio merece uma presença à sua altura.",
-                      "Pipeline Comercial":
-                        "Da primeira oportunidade ao próximo negócio fechado.",
-                      Templates:
-                        "Design que se repete. Identidades que se destacam.",
-                      Configurações:
-                        "A base de uma operação eficiente e segura.",
-                    } as Record<string, string>
-                  )[tab]
-                }
-              </p>
-            </div>
-            <div className="heading-actions">
-              {tab === "Leads" && (
-                <button
-                  className="secondary"
-                  onClick={() => setImportOpen(true)}
-                >
-                  <Upload size={16} /> Importar CSV
-                </button>
-              )}
-              {["Dashboard", "Leads"].includes(tab) && (
-                <button
-                  className="primary"
-                  onClick={() => setLeadModal(newLead({}))}
-                >
-                  <Plus size={17} /> Novo lead
-                </button>
-              )}
-            </div>
-          </div>
-          {!supabase && (
-            <div className="sandbox-bar">
-              <ShieldCheck size={16} />
-              <span>
-                Ambiente de teste: os dados ficam neste navegador. Conecte o
-                Supabase para login e links compartilháveis.
-              </span>
-              <button onClick={() => setTab("Configurações")}>
-                Configurar <ArrowUpRight size={13} />
-              </button>
-            </div>
-          )}
-          {tab === "Dashboard" && (
+          {tab !== "Dashboard" && (
             <>
-              <div className="metrics">
-                {[
-                  {
-                    label: "Leads na operação",
-                    value: db.leads.length,
-                    icon: Users,
-                    caption: "Oportunidades cadastradas",
-                  },
-                  {
-                    label: "Leads qualificados",
-                    value: qualified,
-                    icon: ShieldCheck,
-                    caption: "Prontos para uma demonstração",
-                  },
-                  {
-                    label: "Vitrines criadas",
-                    value: db.previews.length,
-                    icon: Globe,
-                    caption: `${db.previews.filter((p) => p.active).length} demonstrações ativas`,
-                  },
-                  {
-                    label: "Negócios fechados",
-                    value: db.leads.filter((l) => l.stage === "Cliente fechado")
-                      .length,
-                    icon: TrendingUp,
-                    caption: "Conversões registradas",
-                  },
-                ].map((m) => (
-                  <div className="metric" key={m.label}>
-                    <div>
-                      <span>{m.label}</span>
-                      <m.icon size={18} />
-                    </div>
-                    <strong>{String(m.value).padStart(2, "0")}</strong>
-                    <small>{m.caption}</small>
-                  </div>
-                ))}
-              </div>
-              <div className="dashboard-grid">
-                <section className="panel funnel">
-                  <div className="panel-title">
-                    <div>
-                      <h2>Seu funil de oportunidades</h2>
-                      <p>Uma visão de cada etapa da operação</p>
-                    </div>
-                    <button
-                      className="icon-button"
-                      aria-label="Abrir pipeline"
-                      onClick={() => setTab("Pipeline Comercial")}
-                    >
-                      <ArrowUpRight size={19} />
-                    </button>
-                  </div>
-                  <div className="funnel-chart">
-                    {[
-                      { label: "Prospecção", value: db.leads.length },
-                      {
-                        label: "Qualificados",
-                        value: db.leads.filter(
-                          (l) =>
-                            stages.indexOf(l.stage) >= 2 &&
-                            l.stage !== "Perdido",
-                        ).length,
-                      },
-                      { label: "Demonstrações", value: db.previews.length },
-                      {
-                        label: "Propostas",
-                        value: db.leads.filter((l) =>
-                          ["Proposta enviada", "Cliente fechado"].includes(
-                            l.stage,
-                          ),
-                        ).length,
-                      },
-                      {
-                        label: "Fechados",
-                        value: db.leads.filter(
-                          (l) => l.stage === "Cliente fechado",
-                        ).length,
-                      },
-                    ].map((x, i) => (
-                      <div className="funnel-column" key={x.label}>
-                        <strong>{x.value}</strong>
-                        <div className="funnel-track">
-                          <div
-                            style={{
-                              height: `${db.leads.length ? Math.max(3, (x.value / db.leads.length) * 100) : 3}%`,
-                              opacity: 1 - i * 0.13,
-                            }}
-                          />
-                        </div>
-                        <span>{x.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="panel-foot">
-                    <span>
-                      <span className="status-dot" /> Dados da operação atual
-                    </span>
-                    <button onClick={() => setTab("Pipeline Comercial")}>
-                      Ver pipeline <ArrowRight size={14} />
-                    </button>
-                  </div>
-                </section>
-                <section className="opportunity-card">
-                  <span className="pill">
-                    <Sparkles size={13} /> MOTOR DE VITRINES
-                  </span>
-                  <h2>
-                    Uma boa presença
-                    <br />
-                    abre novas portas.
-                  </h2>
+              <div className="page-heading">
+                <div>
+                  <p className="eyebrow">SUA OPERAÇÃO, EM PERSPECTIVA</p>
+                  <h1>{tab === "Dashboard" ? "Visão geral" : tab}</h1>
                   <p>
-                    Transforme um lead qualificado em uma demonstração
-                    profissional. Em poucos cliques.
+                    {
+                      (
+                        {
+                          Dashboard:
+                            "Acompanhe oportunidades. Crie presenças digitais. Feche negócios.",
+                          Leads:
+                            "O próximo grande cliente pode estar na sua lista.",
+                          Vitrines:
+                            "Cada negócio merece uma presença à sua altura.",
+                          "Pipeline Comercial":
+                            "Da primeira oportunidade ao próximo negócio fechado.",
+                          Templates:
+                            "Design que se repete. Identidades que se destacam.",
+                          Configurações:
+                            "A base de uma operação eficiente e segura.",
+                        } as Record<string, string>
+                      )[tab]
+                    }
                   </p>
-                  <div className="mini-browser">
-                    <div>
-                      <i />
-                      <i />
-                      <i />
-                      <span>barber-premium</span>
-                    </div>
-                    <div>
-                      <Scissors size={22} />
-                      <strong>
-                        Estilo que carrega
-                        <br />a sua identidade.
-                      </strong>
-                      <span>CONCEITO DE BARBEARIA</span>
-                    </div>
-                  </div>
-                  <button onClick={() => setTab("Leads")}>
-                    Criar uma demonstração <ArrowUpRight size={16} />
-                  </button>
-                </section>
-              </div>
-              <section className="panel">
-                <div className="panel-title">
-                  <div>
-                    <h2>
-                      Oportunidades recentes{" "}
-                      <span className="count">{db.leads.length}</span>
-                    </h2>
-                    <p>O próximo passo começa com uma boa conexão</p>
-                  </div>
-                  <button
-                    className="text-button"
-                    onClick={() => setTab("Leads")}
-                  >
-                    Ver todos os leads <ArrowRight size={15} />
-                  </button>
                 </div>
-                {leadTable(db.leads.slice(0, 5))}
-              </section>
-              <div className="bottom-note">
-                <span>
-                  <Layers3 size={14} /> Uma aplicação. Múltiplas vitrines.
-                </span>
-                <span>Configuração dinâmica • Sem consumo de IA</span>
+                <div className="heading-actions">
+                  {tab === "Leads" && (
+                    <button
+                      className="secondary"
+                      onClick={() => setImportOpen(true)}
+                    >
+                      <Upload size={16} /> Importar CSV
+                    </button>
+                  )}
+                  {["Dashboard", "Leads"].includes(tab) && (
+                    <button
+                      className="primary"
+                      onClick={() => setLeadModal(newLead({}))}
+                    >
+                      <Plus size={17} /> Novo lead
+                    </button>
+                  )}
+                </div>
               </div>
             </>
+          )}
+          {tab === "Dashboard" && (
+            <Dashboard
+              db={db}
+              name={supabase ? "Operador" : "Lucas"}
+              selected={selected}
+              onSelection={setSelected}
+              onLead={setLeadModal}
+              onNavigate={setTab}
+              onNewLead={() => setLeadModal(newLead({}))}
+              onActivities={() => setActivitiesOpen(true)}
+              onCreatePreview={() => {
+                setTab("Leads");
+                setStage("Qualificado");
+                setSearch("");
+                setCity("");
+                setVerification("");
+                setCategory("");
+                setRating("");
+                if (!db.leads.some((l) => l.stage === "Qualificado"))
+                  notify(
+                    "Qualifique um lead de barbearia para criar sua primeira demonstração.",
+                  );
+              }}
+            />
           )}
           {tab === "Leads" && (
             <section className="panel">
@@ -1053,6 +950,101 @@ export default function Workspace() {
           e.target.value = "";
         }}
       />
+      {searchOpen && (
+        <Modal
+          title="Encontre sua próxima oportunidade"
+          close={() => setSearchOpen(false)}
+          wide
+        >
+          <label className="command-search">
+            <Search size={20} />
+            <input
+              aria-label="Buscar em toda a operação"
+              placeholder="Nome da empresa, cidade, categoria..."
+              value={globalQuery}
+              onChange={(e) => setGlobalQuery(e.target.value)}
+            />
+            <kbd>ESC</kbd>
+          </label>
+          <div className="command-results">
+            <p className="command-section-label">
+              LEADS <span>{searchLeads.length}</span>
+            </p>
+            {searchLeads.map((lead) => (
+              <button
+                className="command-result"
+                key={lead.id}
+                onClick={() => {
+                  setSearchOpen(false);
+                  setLeadModal(lead);
+                }}
+              >
+                <span className="command-icon">
+                  <Users size={18} />
+                </span>
+                <span>
+                  <b>{lead.name}</b>
+                  <small>
+                    {lead.category} · {lead.city || "Cidade não informada"}
+                  </small>
+                </span>
+                <ArrowUpRight size={16} />
+              </button>
+            ))}
+            <p className="command-section-label">
+              VITRINES <span>{searchPreviews.length}</span>
+            </p>
+            {searchPreviews.map((preview) => (
+              <button
+                className="command-result"
+                key={preview.id}
+                onClick={() => {
+                  setSearchOpen(false);
+                  setEditor(preview);
+                  setShowPreview(false);
+                }}
+              >
+                <span className="command-icon">
+                  <Monitor size={18} />
+                </span>
+                <span>
+                  <b>{preview.config.businessName}</b>
+                  <small>
+                    {preview.active
+                      ? "Demonstração ativa"
+                      : "Demonstração desativada"}
+                  </small>
+                </span>
+                <ArrowUpRight size={16} />
+              </button>
+            ))}
+            {!searchLeads.length && !searchPreviews.length && (
+              <p className="command-empty">
+                Nenhum resultado. Tente outro nome ou cidade.
+              </p>
+            )}
+          </div>
+        </Modal>
+      )}
+      {activitiesOpen && (
+        <Modal
+          title="Atividades da operação"
+          close={() => setActivitiesOpen(false)}
+          wide
+        >
+          <ActivityList
+            items={feed.slice(0, 40)}
+            now={activityNow}
+            onSelect={(id) => {
+              const lead = db.leads.find((l) => l.id === id);
+              if (lead) {
+                setActivitiesOpen(false);
+                setLeadModal(lead);
+              }
+            }}
+          />
+        </Modal>
+      )}
       {importOpen && (
         <Modal
           title="Importar oportunidades"

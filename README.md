@@ -41,3 +41,9 @@ Importe o repositório na Vercel, com framework Next.js e diretório raiz do rep
 ## Pendente
 
 Fase 4: Apify, credencial exclusivamente no servidor, adaptadores, limite configurável persistido, logs de jobs e custos. Não há integração Apify ativa nem chamadas automáticas. Fase 5: eventos de visualização sem PII, dashboard avançado com período/nicho/cidade, refinamentos e testes remotos. Os indicadores atuais são contagens dos registros existentes, sem números inventados. Eventos de acesso e métricas de visualização não estão implementados. Colaboração entre operadores e site definitivo/domínio próprio são etapas futuras.
+
+## Interface de operação
+
+O dashboard usa o design de referência: grafite, verde-menta, busca global (Ctrl/Cmd+K), filtro de período, funil com seis etapas, oportunidades e atividades recentes. O período considera a data de cadastro dos leads e de criação das vitrines; o funil mostra o estágio atual desses leads. O feed é composto por cadastros, vitrines e interações realmente existentes. Nenhum ganho percentual, receita ou prazo de assinatura é simulado.
+
+A imagem conceitual e a documentação do prompt estão em ASSETS.md. Todo o código de apresentação do dashboard está em src/components/dashboard.tsx e src/app/workspace.css.
