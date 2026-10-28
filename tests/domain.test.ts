@@ -75,3 +75,43 @@ test("configuração rejeita URL insegura e cores inválidas", () => {
     false,
   );
 });
+
+test("oficina recebe template próprio e mantém dados comerciais", () => {
+  const config = defaultConfig(
+    newLead({
+      name: "Oficina Teste",
+      category: "Oficina mecânica",
+      address: "Rua Comercial, 10",
+      logoUrl: "https://example.com/logo.png",
+      logoAuthorized: true,
+      mapsUrl: "https://maps.app.goo.gl/exemplo",
+    }),
+  );
+  assert.equal(config.templateId, "mechanic-pro");
+  assert.equal(config.businessName, "Oficina Teste");
+  assert.equal(config.address, "Rua Comercial, 10");
+  assert.equal(config.logoAuthorized, true);
+  assert.ok(configSchema.safeParse(config).success);
+  assert.equal(
+    configSchema.safeParse({
+      ...config,
+      mapsUrl: "https://evil.example/?google.com",
+    }).success,
+    false,
+  );
+});
+test("configurações antigas continuam válidas e imagens inseguras são recusadas", () => {
+  const config = defaultConfig(newLead({ name: "Atlas", category: "Barbearia" }));
+  delete config.logoUrl;
+  delete config.logoAuthorized;
+  delete config.mapsUrl;
+  delete config.gallery;
+  delete config.about;
+  assert.ok(configSchema.safeParse(config).success);
+  assert.equal(
+    configSchema.safeParse({ ...config, logoUrl: "javascript:alert(1)" })
+      .success,
+    false,
+  );
+});
+

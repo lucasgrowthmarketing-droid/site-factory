@@ -20,6 +20,9 @@ export const verifications = [
   "Necessita revisão",
 ] as const;
 export type Lead = {
+  logoUrl?: string;
+  logoAuthorized?: boolean;
+  mapsUrl?: string;
   id: string;
   name: string;
   category: string;
@@ -57,7 +60,12 @@ export type SiteConfig = {
   city: string;
   address: string;
   phone: string;
-  templateId: "barber-premium";
+  templateId: "barber-premium" | "mechanic-pro";
+  logoUrl?: string;
+  logoAuthorized?: boolean;
+  mapsUrl?: string;
+  gallery?: string[];
+  about?: string;
   color: string;
   headline: string;
   description: string;
@@ -77,7 +85,15 @@ export const configSchema = z.object({
   city: z.string().max(150),
   address: z.string().max(300),
   phone: z.string().max(40),
-  templateId: z.literal("barber-premium"),
+  templateId: z.enum(["barber-premium", "mechanic-pro"]),
+  logoUrl: z.string().url().startsWith("https://").or(z.literal("")).optional(),
+  logoAuthorized: z.boolean().optional(),
+  mapsUrl: z
+    .string()
+    .refine((v) => !v || isMapsUrl(v), "Use um link do Google Maps")
+    .optional(),
+  gallery: z.array(z.string().url().startsWith("https://")).max(8).optional(),
+  about: z.string().max(2000).optional(),
   color: z.string().regex(/^#[a-fA-F0-9]{6}$/),
   headline: z.string().trim().min(1).max(180),
   description: z.string().max(1500),
@@ -85,7 +101,11 @@ export const configSchema = z.object({
   imageUrl: z
     .string()
     .refine(
-      (v) => !v || v === "/barber.svg" || /^https:\/\//.test(v),
+      (v) =>
+        !v ||
+        v === "/barber.svg" ||
+        /^\/templates\/[a-z-]+\.webp$/.test(v) ||
+        /^https:\/\//.test(v),
       "Use uma URL HTTPS",
     ),
   font: z.enum(["classic", "modern"]),
@@ -112,6 +132,32 @@ export function duplicate(a: Lead, b: Lead) {
     (key(a.name) === key(b.name) && a.city && key(a.city) === key(b.city))
   );
 }
+export function isMapsUrl(value: string) {
+  try {
+    const u = new URL(value);
+    return (
+      u.protocol === "https:" &&
+      ([
+        "google.com",
+        "www.google.com",
+        "maps.google.com",
+        "maps.app.goo.gl",
+        "goo.gl",
+      ].includes(u.hostname) ||
+        /^www\.google\.com\.[a-z]{2}$/.test(u.hostname))
+    );
+  } catch {
+    return false;
+  }
+}
+export const isMechanic = (category: string) =>
+  /oficina|mec[aâ]nic|auto repair|car repair|automotive/i.test(category);
+export const templateFor = (category: string) =>
+  isMechanic(category)
+    ? "mechanic-pro"
+    : isBarber(category)
+      ? "barber-premium"
+      : null;
 export const isBarber = (category: string) => /barb|barber/i.test(category);
 export function newLead(data: Partial<Lead>): Lead {
   return {
@@ -141,13 +187,23 @@ export function defaultConfig(lead: Lead): SiteConfig {
     city: lead.city,
     address: lead.address,
     phone: lead.phone,
-    templateId: "barber-premium",
-    color: "#bda16d",
-    headline: "Estilo que carrega a sua identidade.",
-    description:
-      "Uma nova perspectiva para o seu cuidado. Este é um conceito visual demonstrativo, criado para apresentar as possibilidades do seu negócio na internet.",
+    templateId: isMechanic(lead.category) ? "mechanic-pro" : "barber-premium",
+    logoUrl: lead.logoUrl ?? "",
+    logoAuthorized: lead.logoAuthorized ?? false,
+    mapsUrl: lead.mapsUrl ?? "",
+    about: "",
+    gallery: [],
+    color: isMechanic(lead.category) ? "#ed4935" : "#c5a46e",
+    headline: isMechanic(lead.category)
+      ? "Seu carro em boas mãos. Você no caminho certo."
+      : "Mais que um corte. A sua melhor versão.",
+    description: isMechanic(lead.category)
+      ? "Cuidado automotivo começa com uma boa conversa. Conheça nossa proposta de atendimento e os serviços para o seu veículo."
+      : "Um tempo para cuidar de você. Conheça a proposta de uma barbearia que combina estilo, tradição e atenção aos detalhes.",
     services: [],
-    imageUrl: "/barber.svg",
+    imageUrl: isMechanic(lead.category)
+      ? "/templates/mechanic-hero.webp"
+      : "/templates/barber-hero.webp",
     font: "classic",
   };
 }
@@ -185,6 +241,9 @@ export function importCsv(text: string, existing: Lead[], limit = 500) {
       address: row.endereco || row["endereço"] || row.address || "",
       phone: row.telefone || row.phone || "",
       website,
+      logoUrl: row.logo_url || row.logo || "",
+      logoAuthorized: row.logo_autorizada === "sim",
+      mapsUrl: row.maps_url || "",
       externalId: row.external_id || row.id || "",
       source: row.fonte || row.source || "CSV",
       fictional: /fict[ií]ci/i.test(row.fonte || row.source || name),

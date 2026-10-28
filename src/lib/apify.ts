@@ -1,4 +1,4 @@
-import { newLead, duplicate, type Lead } from "./domain";
+import { newLead, duplicate, isMapsUrl, type Lead } from "./domain";
 export function normalizeApify(
   rows: unknown[],
   existing: Lead[],
@@ -44,6 +44,11 @@ export function normalizeApify(
       address: str("address", "street", "endereco"),
       phone: str("phone", "phoneUnformatted", "telefone"),
       website,
+      logoUrl: str("logoUrl", "logo"),
+      logoAuthorized: r.logoAuthorized === true,
+      mapsUrl: isMapsUrl(str("googleMapsUrl", "mapsUrl", "url"))
+        ? str("googleMapsUrl", "mapsUrl", "url")
+        : "",
       externalId: str("placeId", "cid", "id", "externalId"),
       source,
       rating: number("totalScore", "rating", "stars"),

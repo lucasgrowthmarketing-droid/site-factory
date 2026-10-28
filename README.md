@@ -65,3 +65,11 @@ SiteFactory conectado ao projeto Supabase existente `supabase-cordovan-engine` (
 Validação remota: as tabelas internas negam acesso anônimo; `get_public_preview` aceita a chave pública e retorna null para token inválido. Endpoint Apify exige sessão autenticada (401 sem sessão). Publicação de infraestrutura: READY. A criação da senha do operador exige ação do proprietário no Supabase; os testes autenticados de ponta a ponta ainda dependem dessa conta.
 
 A execução antiga do Google Maps Scraper aparece no histórico de uso, mas a lista atual de runs está vazia por retenção. Para homologar importação de dados reais, será necessário fornecer um dataset atual autorizado ou executar uma nova coleta com limite/custo aprovado. Nenhuma nova coleta paga foi iniciada.
+
+### Templates comerciais completos
+
+Barbearias (`barber-premium`) e oficinas mecânicas (`mechanic-pro`) possuem páginas completas com fotografias, serviços sugeridos, apresentação, processo, galeria, perguntas frequentes e localização. Catálogo público: `/templates/barber-premium` e `/templates/mechanic-pro`.
+
+Nome, endereço e cidade vêm do lead. `logoUrl` só é exibida quando `logoAuthorized` está habilitado. `mapsUrl` aceita links HTTPS do Google Maps; sem link, a localização usa nome e endereço, mediante clique do visitante. Sem endereço completo, nenhum pin exato é inventado. Campos também disponíveis no editor; até oito imagens HTTPS próprias na galeria. Apify aceita `logoUrl`/`logo`, `googleMapsUrl`/`mapsUrl`/`url` (apenas Maps). CSV aceita `logo_url`, `logo_autorizada=sim` e `maps_url`.
+
+Aplicar também a migração `supabase/migrations/202610280002_mechanic_template.sql`, que habilita o segundo template e sincroniza sua identificação no banco.

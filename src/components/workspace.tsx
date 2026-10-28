@@ -45,7 +45,8 @@ import {
   importCsv,
   defaultConfig,
   seed,
-  isBarber,
+  templateFor,
+  isMapsUrl,
   configSchema,
   type Lead,
   type Preview,
@@ -171,6 +172,10 @@ export default function Workspace() {
   }
   async function saveLead(lead: Lead) {
     if (!lead.name.trim()) throw new Error("Informe o nome da empresa.");
+    if (lead.logoUrl && !/^https:\/\//.test(lead.logoUrl))
+      throw new Error("Use uma URL HTTPS para a logo.");
+    if (lead.mapsUrl && !isMapsUrl(lead.mapsUrl))
+      throw new Error("Use um link do Google Maps.");
     if (db.leads.some((l) => l.id !== lead.id && duplicate(l, lead)))
       throw new Error(
         "Esta empresa já existe: nome/cidade, telefone ou identificador duplicado.",
@@ -194,9 +199,9 @@ export default function Workspace() {
     notify("Etapa comercial atualizada.");
   }
   async function generate(lead: Lead) {
-    if (!isBarber(lead.category))
+    if (!templateFor(lead.category))
       throw new Error(
-        "O template disponível é para barbearias. Mais nichos em breve.",
+        "Escolha uma categoria de barbearia ou oficina mecânica.",
       );
     if (lead.stage !== "Qualificado")
       throw new Error("Qualifique o lead antes de gerar a demonstração.");
@@ -591,7 +596,7 @@ export default function Workspace() {
                 setRating("");
                 if (!db.leads.some((l) => l.stage === "Qualificado"))
                   notify(
-                    "Qualifique um lead de barbearia para criar sua primeira demonstração.",
+                    "Qualifique um lead de barbearia ou oficina para criar sua primeira demonstração.",
                   );
               }}
             />
@@ -739,7 +744,11 @@ export default function Workspace() {
                     </div>
                     <div className="preview-info">
                       <h3>{p.config.businessName}</h3>
-                      <p>Barbearia · Barber Premium</p>
+                      <p>
+                        {p.config.templateId === "mechanic-pro"
+                          ? "Oficina · Mechanic Pro"
+                          : "Barbearia · Barber Premium"}
+                      </p>
                       <small>
                         Criada em {date(p.createdAt)} · Visualizações:{" "}
                         {db.views?.[p.id] ?? 0}
@@ -846,7 +855,13 @@ export default function Workspace() {
           {tab === "Templates" && (
             <div className="template-layout">
               <article className="template-feature">
-                <div className="template-art">
+                <div
+                  className="template-art"
+                  style={{
+                    background:
+                      "linear-gradient(#17120e88,#17120ebb),url(/templates/barber-hero.webp) center/cover",
+                  }}
+                >
                   <Scissors size={45} />
                   <h2>
                     BARBER
@@ -858,6 +873,9 @@ export default function Workspace() {
                 <div className="template-info">
                   <span className="pill">DISPONÍVEL</span>
                   <h2>Barber Premium</h2>
+                  <Link href="/templates/barber-premium" target="_blank">
+                    Visualizar site completo ↗
+                  </Link>
                   <p>
                     Um conceito editorial para barbearias. Tipografia marcante,
                     tons quentes e uma experiência que coloca o negócio em
@@ -871,6 +889,37 @@ export default function Workspace() {
                   </div>
                   <button className="primary" onClick={() => setTab("Leads")}>
                     Usar em um lead <ArrowRight size={16} />
+                  </button>
+                </div>
+              </article>
+              <article className="template-feature" style={{ marginTop: 24 }}>
+                <div
+                  className="template-art"
+                  style={{
+                    background:
+                      "linear-gradient(#101b29aa,#0e1623aa),url(/templates/mechanic-hero.webp) center/cover",
+                  }}
+                >
+                  <h2>
+                    MECHANIC
+                    <br />
+                    <em>PRO</em>
+                  </h2>
+                  <span>PRECISÃO. CONFIANÇA. PRESENÇA.</span>
+                </div>
+                <div className="template-info">
+                  <span className="pill">DISPONÍVEL</span>
+                  <h2>Mechanic Pro</h2>
+                  <Link href="/templates/mechanic-pro" target="_blank">
+                    Visualizar site completo ↗
+                  </Link>
+                  <p>
+                    Um site completo para oficinas mecânicas: serviços com
+                    imagens, apresentação, processo de atendimento e Google
+                    Maps.
+                  </p>
+                  <button className="primary" onClick={() => setTab("Leads")}>
+                    Usar em uma oficina
                   </button>
                 </div>
               </article>
@@ -916,9 +965,9 @@ export default function Workspace() {
                   identificador, telefone ou nome e cidade.
                 </p>
                 <p>
-                  Uma vitrine por lead. Template atual: barbearia. A ausência de
-                  site no CSV é classificada como indício, nunca como
-                  confirmação.
+                  Uma vitrine por lead. Templates: barbearia e oficina. A
+                  ausência de site no CSV é classificada como indício, nunca
+                  como confirmação.
                 </p>
                 <button className="secondary" onClick={downloadExample}>
                   <ArrowDownToLine size={15} /> Baixar CSV de exemplo
@@ -1126,6 +1175,8 @@ export default function Workspace() {
                   ["city", "Cidade"],
                   ["phone", "Telefone comercial"],
                   ["address", "Endereço"],
+                  ["logoUrl", "Logo (URL HTTPS)"],
+                  ["mapsUrl", "Link do Google Maps"],
                   ["website", "Website"],
                   ["externalId", "Identificador externo"],
                   ["source", "Fonte dos dados"],
@@ -1136,7 +1187,7 @@ export default function Workspace() {
                   <input
                     required={k === "name"}
                     maxLength={k === "name" ? 150 : 300}
-                    value={leadModal[k]}
+                    value={leadModal[k] ?? ""}
                     onChange={(e) =>
                       setLeadModal({ ...leadModal, [k]: e.target.value })
                     }
@@ -1177,6 +1228,19 @@ export default function Workspace() {
                 </select>
               </label>
             </div>
+            <label>
+              <input
+                type="checkbox"
+                checked={!!leadModal.logoAuthorized}
+                onChange={(e) =>
+                  setLeadModal({
+                    ...leadModal,
+                    logoAuthorized: e.target.checked,
+                  })
+                }
+              />{" "}
+              Tenho autorização para usar a logo nesta demonstração.
+            </label>
             <label>
               Observações
               <textarea
@@ -1269,7 +1333,11 @@ export default function Workspace() {
           wide
         >
           <div className="editor-toolbar">
-            <span className="tag">Barber Premium</span>
+            <span className="tag">
+              {editor.config.templateId === "mechanic-pro"
+                ? "Mechanic Pro"
+                : "Barber Premium"}
+            </span>
             <button
               className="secondary"
               onClick={() => setShowPreview(!showPreview)}
@@ -1310,6 +1378,33 @@ export default function Workspace() {
               }}
             >
               <div className="form-grid">
+                <label>
+                  Template
+                  <select
+                    value={editor.config.templateId}
+                    onChange={(e) =>
+                      setEditor({
+                        ...editor,
+                        config: {
+                          ...editor.config,
+                          templateId: e.target
+                            .value as SiteConfig["templateId"],
+                          imageUrl:
+                            e.target.value === "mechanic-pro"
+                              ? "/templates/mechanic-hero.webp"
+                              : "/templates/barber-hero.webp",
+                          color:
+                            e.target.value === "mechanic-pro"
+                              ? "#ed4935"
+                              : "#c5a46e",
+                        },
+                      })
+                    }
+                  >
+                    <option value="barber-premium">Barber Premium</option>
+                    <option value="mechanic-pro">Mechanic Pro</option>
+                  </select>
+                </label>
                 {(
                   [
                     ["businessName", "Nome do negócio"],
@@ -1328,7 +1423,7 @@ export default function Workspace() {
                     <input
                       required={k === "businessName" || k === "headline"}
                       maxLength={300}
-                      value={editor.config[k]}
+                      value={editor.config[k] ?? ""}
                       onChange={(e) =>
                         setEditor({
                           ...editor,
@@ -1370,6 +1465,49 @@ export default function Workspace() {
                   </select>
                 </label>
               </div>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={editor.config.logoAuthorized ?? false}
+                  onChange={(e) =>
+                    setEditor({
+                      ...editor,
+                      config: {
+                        ...editor.config,
+                        logoAuthorized: e.target.checked,
+                      },
+                    })
+                  }
+                />{" "}
+                Uso autorizado da logo
+              </label>
+              <label>
+                Sobre a empresa (informações confirmadas)
+                <textarea
+                  value={editor.config.about ?? ""}
+                  onChange={(e) =>
+                    setEditor({
+                      ...editor,
+                      config: { ...editor.config, about: e.target.value },
+                    })
+                  }
+                />
+              </label>
+              <label>
+                Fotos autorizadas (URLs HTTPS, uma por linha)
+                <textarea
+                  value={(editor.config.gallery ?? []).join("\n")}
+                  onChange={(e) =>
+                    setEditor({
+                      ...editor,
+                      config: {
+                        ...editor.config,
+                        gallery: e.target.value.split("\n").filter(Boolean),
+                      },
+                    })
+                  }
+                />
+              </label>
               <label>
                 Descrição
                 <textarea

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "@fontsource-variable/inter";
 import "./globals.css";
 import "./workspace.css";
+import "./business-site.css";
 export const metadata: Metadata = {
   title: "SiteFactory — Da oportunidade à presença digital",
   description: "Prospecte, qualifique e crie demonstrações comerciais.",
