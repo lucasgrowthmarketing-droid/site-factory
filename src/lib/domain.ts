@@ -86,7 +86,10 @@ export const configSchema = z.object({
   address: z.string().max(300),
   phone: z.string().max(40),
   templateId: z.enum(["barber-premium", "mechanic-pro"]),
-  logoUrl: z.string().url().startsWith("https://").or(z.literal("")).optional(),
+  logoUrl: z
+    .string()
+    .refine(isLogoUrl, "Use uma imagem enviada ou URL HTTPS")
+    .optional(),
   logoAuthorized: z.boolean().optional(),
   mapsUrl: z
     .string()
@@ -130,6 +133,20 @@ export function duplicate(a: Lead, b: Lead) {
     (phoneKey(a.phone).length >= 10 &&
       phoneKey(a.phone) === phoneKey(b.phone)) ||
     (key(a.name) === key(b.name) && a.city && key(a.city) === key(b.city))
+  );
+}
+export function isLogoUrl(url: string) {
+  if (!url) return true;
+  if (url.startsWith("https://")) {
+    try {
+      return new URL(url).protocol === "https:";
+    } catch {
+      return false;
+    }
+  }
+  return (
+    url.length <= 270000 &&
+    /^data:image\/(webp|png);base64,[A-Za-z0-9+/]+={0,2}$/.test(url)
   );
 }
 export function isMapsUrl(value: string) {
@@ -191,12 +208,13 @@ export function defaultConfig(lead: Lead): SiteConfig {
     logoUrl: lead.logoUrl ?? "",
     logoAuthorized: lead.logoAuthorized ?? false,
     mapsUrl: lead.mapsUrl ?? "",
-    about: "",
+    about: `${lead.name}${lead.city ? `, em ${lead.city}` : ""}. ${isMechanic(lead.category) ? "Conheça uma proposta de presença digital para apresentar os cuidados com seu veículo e facilitar o contato com a oficina." : "Conheça uma proposta de presença digital para apresentar o estilo da barbearia e facilitar seu próximo contato."}${lead.address ? ` Encontre a empresa em ${lead.address}.` : ""}`,
     gallery: [],
     color: isMechanic(lead.category) ? "#ed4935" : "#c5a46e",
-    headline: isMechanic(lead.category)
-      ? "Seu carro em boas mãos. Você no caminho certo."
-      : "Mais que um corte. A sua melhor versão.",
+    headline: (isMechanic(lead.category)
+      ? `${lead.name}: cuidado para seguir em frente.`
+      : `${lead.name}: seu estilo começa aqui.`
+    ).slice(0, 180),
     description: isMechanic(lead.category)
       ? "Cuidado automotivo começa com uma boa conversa. Conheça nossa proposta de atendimento e os serviços para o seu veículo."
       : "Um tempo para cuidar de você. Conheça a proposta de uma barbearia que combina estilo, tradição e atenção aos detalhes.",

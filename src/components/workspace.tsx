@@ -47,6 +47,7 @@ import {
   seed,
   templateFor,
   isMapsUrl,
+  isLogoUrl,
   configSchema,
   type Lead,
   type Preview,
@@ -54,6 +55,8 @@ import {
   type SiteConfig,
 } from "@/lib/domain";
 import Barber from "./barber";
+import LogoUpload from "./logo-upload";
+import Prospect from "./prospect";
 import Acquisition from "./acquisition";
 import Dashboard, { ActivityList } from "./dashboard";
 import { activityFeed } from "@/lib/dashboard";
@@ -83,6 +86,7 @@ export default function Workspace() {
     [selected, setSelected] = useState<string[]>([]),
     [toast, setToast] = useState(""),
     [busy, setBusy] = useState(false),
+    [logoBusy, setLogoBusy] = useState(false),
     [leadModal, setLeadModal] = useState<Lead | null>(null),
     [editor, setEditor] = useState<Preview | null>(null),
     [showPreview, setShowPreview] = useState(false),
@@ -171,8 +175,9 @@ export default function Workspace() {
     });
   }
   async function saveLead(lead: Lead) {
+    if (logoBusy) throw new Error("Aguarde o envio da logo terminar.");
     if (!lead.name.trim()) throw new Error("Informe o nome da empresa.");
-    if (lead.logoUrl && !/^https:\/\//.test(lead.logoUrl))
+    if (lead.logoUrl && !isLogoUrl(lead.logoUrl))
       throw new Error("Use uma URL HTTPS para a logo.");
     if (lead.mapsUrl && !isMapsUrl(lead.mapsUrl))
       throw new Error("Use um link do Google Maps.");
@@ -232,6 +237,7 @@ export default function Workspace() {
     notify("Vitrine criada. Nenhuma chamada de IA, nenhum novo deploy.");
   }
   async function savePreview(p: Preview) {
+    if (logoBusy) throw new Error("Aguarde o envio da logo terminar.");
     p = {
       ...p,
       config: configSchema.parse({
@@ -602,13 +608,22 @@ export default function Workspace() {
             />
           )}
           {tab === "Leads" && (
-            <Acquisition
-              onImported={() => {
-                loadDatabase()
-                  .then(setDb)
-                  .catch((e) => notify(e.message));
-              }}
-            />
+            <>
+              <Prospect
+                onUpdated={() => {
+                  loadDatabase()
+                    .then(setDb)
+                    .catch((e) => notify(e.message));
+                }}
+              />
+              <Acquisition
+                onImported={() => {
+                  loadDatabase()
+                    .then(setDb)
+                    .catch((e) => notify(e.message));
+                }}
+              />
+            </>
           )}
           {tab === "Leads" && (
             <section className="panel">
@@ -1158,7 +1173,9 @@ export default function Workspace() {
               ? "Detalhes da oportunidade"
               : "Novo lead"
           }
-          close={() => setLeadModal(null)}
+          close={() => {
+            if (!logoBusy) setLeadModal(null);
+          }}
           wide
         >
           <form
@@ -1175,7 +1192,6 @@ export default function Workspace() {
                   ["city", "Cidade"],
                   ["phone", "Telefone comercial"],
                   ["address", "Endereço"],
-                  ["logoUrl", "Logo (URL HTTPS)"],
                   ["mapsUrl", "Link do Google Maps"],
                   ["website", "Website"],
                   ["externalId", "Identificador externo"],
@@ -1228,6 +1244,24 @@ export default function Workspace() {
                 </select>
               </label>
             </div>
+            <LogoUpload
+              value={leadModal.logoUrl}
+              owner={user!}
+              onBusyChange={setLogoBusy}
+              onChange={(url, uploaded) =>
+                setLeadModal((current) =>
+                  current?.id === leadModal.id
+                    ? {
+                        ...current,
+                        logoUrl: url,
+                        logoAuthorized: uploaded
+                          ? true
+                          : current.logoAuthorized,
+                      }
+                    : current,
+                )
+              }
+            />
             <label>
               <input
                 type="checkbox"
@@ -1273,8 +1307,9 @@ export default function Workspace() {
                     <Sparkles size={16} /> Gerar demonstração
                   </button>
                 )}
-              <button className="primary" disabled={busy}>
-                Salvar lead <Check size={16} />
+              <button className="primary" disabled={busy || logoBusy}>
+                {logoBusy ? "Enviando logo…" : "Salvar lead"}{" "}
+                <Check size={16} />
               </button>
             </div>
           </form>
@@ -1327,6 +1362,7 @@ export default function Workspace() {
         <Modal
           title="Sua próxima presença digital"
           close={() => {
+            if (logoBusy) return;
             setEditor(null);
             setShowPreview(false);
           }}
@@ -1340,6 +1376,7 @@ export default function Workspace() {
             </span>
             <button
               className="secondary"
+              disabled={logoBusy}
               onClick={() => setShowPreview(!showPreview)}
             >
               {showPreview ? "Voltar ao editor" : "Visualizar"}
@@ -1465,6 +1502,27 @@ export default function Workspace() {
                   </select>
                 </label>
               </div>
+              <LogoUpload
+                value={editor.config.logoUrl}
+                owner={user!}
+                onBusyChange={setLogoBusy}
+                onChange={(url, uploaded) =>
+                  setEditor((current) =>
+                    current?.id === editor.id
+                      ? {
+                          ...current,
+                          config: {
+                            ...current.config,
+                            logoUrl: url,
+                            logoAuthorized: uploaded
+                              ? true
+                              : current.config.logoAuthorized,
+                          },
+                        }
+                      : current,
+                  )
+                }
+              />
               <label>
                 <input
                   type="checkbox"
@@ -1554,8 +1612,9 @@ export default function Workspace() {
                 >
                   Restaurar padrão no formulário
                 </button>
-                <button className="primary" disabled={busy}>
-                  Salvar alterações <Check size={16} />
+                <button className="primary" disabled={busy || logoBusy}>
+                  {logoBusy ? "Enviando logo…" : "Salvar alterações"}{" "}
+                  <Check size={16} />
                 </button>
               </div>
             </form>
