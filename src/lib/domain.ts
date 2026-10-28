@@ -66,6 +66,8 @@ export type SiteConfig = {
   font: "classic" | "modern";
 };
 export type Database = {
+  views?: Record<string, number>;
+  events?: { id: string; previewId: string; createdAt: string }[];
   leads: Lead[];
   previews: Preview[];
   activities: Activity[];

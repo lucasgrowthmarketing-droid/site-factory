@@ -34,6 +34,7 @@ import {
   localWrite,
   saveRecord,
   saveLeads,
+  saveCsvImport,
   createPreview,
 } from "@/lib/repository";
 import {
@@ -52,6 +53,7 @@ import {
   type SiteConfig,
 } from "@/lib/domain";
 import Barber from "./barber";
+import Acquisition from "./acquisition";
 import Dashboard, { ActivityList } from "./dashboard";
 import { activityFeed } from "@/lib/dashboard";
 const nav = [
@@ -124,9 +126,17 @@ export default function Workspace() {
   }, []);
   useEffect(() => {
     if (!user) return;
-    loadDatabase()
-      .then(setDb)
-      .catch((e) => notify(e.message));
+    const refresh = () =>
+      loadDatabase()
+        .then(setDb)
+        .catch((e) => notify(e.message));
+    void refresh();
+    window.addEventListener("storage", refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("focus", refresh);
+    };
   }, [user]);
   async function run(fn: () => Promise<void>) {
     if (busy) return;
@@ -234,8 +244,18 @@ export default function Workspace() {
   async function handleCsv(f: File) {
     await run(async () => {
       if (f.size > 2_000_000) throw new Error("O arquivo deve ter até 2 MB.");
-      const r = importCsv(await f.text(), db.leads);
-      await saveLeads(r.leads, user!);
+      let importLimit = 500;
+      if (supabase) {
+        const { data, error } = await supabase
+          .from("app_settings")
+          .select("import_limit")
+          .eq("owner_id", user!)
+          .maybeSingle();
+        if (error) throw error;
+        importLimit = data?.import_limit ?? 500;
+      }
+      const r = importCsv(await f.text(), db.leads, importLimit);
+      await saveCsvImport(r.leads, user!, r.invalid, r.skipped);
       commit({ ...db, leads: [...r.leads, ...db.leads] });
       setImportOpen(false);
       notify(
@@ -577,6 +597,15 @@ export default function Workspace() {
             />
           )}
           {tab === "Leads" && (
+            <Acquisition
+              onImported={() => {
+                loadDatabase()
+                  .then(setDb)
+                  .catch((e) => notify(e.message));
+              }}
+            />
+          )}
+          {tab === "Leads" && (
             <section className="panel">
               <div className="filters">
                 <label className="search-field">
@@ -712,7 +741,8 @@ export default function Workspace() {
                       <h3>{p.config.businessName}</h3>
                       <p>Barbearia · Barber Premium</p>
                       <small>
-                        Criada em {date(p.createdAt)} · Visualizações: fase 5
+                        Criada em {date(p.createdAt)} · Visualizações:{" "}
+                        {db.views?.[p.id] ?? 0}
                       </small>
                       <div>
                         <button
@@ -925,14 +955,14 @@ export default function Workspace() {
               </section>
               <section className="panel settings-card">
                 <Sparkles size={23} />
-                <h2>Próximas etapas</h2>
+                <h2>Integrações e acompanhamento</h2>
                 <p>
-                  Fase 4: integração Apify, token no servidor, adaptadores e
-                  logs de importação.
+                  Apify: importação de datasets e execuções concluídas,
+                  adaptador de dados e histórico de lotes.
                 </p>
                 <p>
-                  Fase 5: visualizações, dashboard avançado e refinamentos.
-                  Nenhuma coleta ou mensagem automática está habilitada.
+                  Acessos às vitrines registrados sem IP ou identificação
+                  pessoal. Dashboard com filtros por período, nicho e cidade.
                 </p>
               </section>
             </div>

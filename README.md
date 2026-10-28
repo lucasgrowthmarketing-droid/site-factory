@@ -47,3 +47,13 @@ Fase 4: Apify, credencial exclusivamente no servidor, adaptadores, limite config
 O dashboard usa o design de referência: grafite, verde-menta, busca global (Ctrl/Cmd+K), filtro de período, funil com seis etapas, oportunidades e atividades recentes. O período considera a data de cadastro dos leads e de criação das vitrines; o funil mostra o estágio atual desses leads. O feed é composto por cadastros, vitrines e interações realmente existentes. Nenhum ganho percentual, receita ou prazo de assinatura é simulado.
 
 A imagem conceitual e a documentação do prompt estão em ASSETS.md. Todo o código de apresentação do dashboard está em src/components/dashboard.tsx e src/app/workspace.css.
+
+## Entrega das fases 4 e 5 (28/10/2026)
+
+Implementado: importação Apify autenticada no servidor, datasets/execuções/última execução concluída de Actor, normalização, limites de lote, deduplicação, histórico, falhas e custo disponível da execução. Nenhum Actor é iniciado automaticamente. Configure APIFY_TOKEN como segredo na Vercel. A implementação usa os endpoints documentados em https://docs.apify.com/api/v2 e autorização Bearer.
+
+Aplique também a migration `202610280001_imports_and_analytics.sql`. Ela adiciona jobs idempotentes, importação transacional, eventos sem IP/user-agent e contagem de visualizações. Um acesso é registrado por sessão de aba, não representa visitantes únicos. CSV usa o mesmo histórico no Supabase. Dashboard oferece período, cidade, nicho e acessos acumulados; a contagem de acessos está explicitamente rotulada como total acumulado.
+
+Validação: testes de domínio/normalização e build; migrations executadas em PostgreSQL local (PGlite), incluindo isolamento de proprietário, acesso público restrito, idempotência dos eventos e desativação. Isso não substitui a validação com credenciais e dados autorizados na infraestrutura real.
+
+Bloqueio de provisionamento identificado: conta Supabase no limite de projetos gratuitos. Nenhum projeto existente foi pausado, excluído ou atualizado para plano pago. Integração real ainda depende de liberar uma vaga/selecionar projeto e configurar as variáveis; não deve ser considerada homologada até o teste remoto.

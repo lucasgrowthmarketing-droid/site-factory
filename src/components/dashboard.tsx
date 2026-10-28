@@ -102,7 +102,24 @@ export default function Dashboard({
 }: Props) {
   const [days, setDays] = useState(30);
   const [now] = useState(() => Date.now());
-  const data = dashboardData(db, days, now);
+  const [city, setCity] = useState(""),
+    [category, setCategory] = useState("");
+  const scoped = {
+    ...db,
+    leads: db.leads.filter(
+      (l) =>
+        (!city || l.city === city) && (!category || l.category === category),
+    ),
+    previews: db.previews.filter((p) => {
+      const l = db.leads.find((l) => l.id === p.leadId);
+      return (
+        !!l &&
+        (!city || l.city === city) &&
+        (!category || l.category === category)
+      );
+    }),
+  };
+  const data = dashboardData(scoped, days, now);
   const percent = (n: number) =>
     data.leads.length ? Math.round((n / data.leads.length) * 100) : 0;
   const recent = [...data.leads]
@@ -146,6 +163,36 @@ export default function Dashboard({
   return (
     <div className="dashboard-layout">
       <div className="dashboard-primary">
+        <div className="filters" style={{ padding: 0, marginBottom: 16 }}>
+          <select
+            aria-label="Cidade do dashboard"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+          >
+            <option value="">Todas as cidades</option>
+            {[...new Set(db.leads.map((l) => l.city))]
+              .filter(Boolean)
+              .map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+          </select>
+          <select
+            aria-label="Nicho do dashboard"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">Todos os nichos</option>
+            {[...new Set(db.leads.map((l) => l.category))].map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+          <span className="hint">
+            {Object.entries(db.views ?? {})
+              .filter(([id]) => scoped.previews.some((p) => p.id === id))
+              .reduce((total, [, n]) => total + n, 0)}{" "}
+            acessos às vitrines · total acumulado
+          </span>
+        </div>
         <div className="dashboard-welcome">
           <div>
             <p className="eyebrow">
