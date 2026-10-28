@@ -57,3 +57,11 @@ Aplique também a migration `202610280001_imports_and_analytics.sql`. Ela adicio
 Validação: testes de domínio/normalização e build; migrations executadas em PostgreSQL local (PGlite), incluindo isolamento de proprietário, acesso público restrito, idempotência dos eventos e desativação. Isso não substitui a validação com credenciais e dados autorizados na infraestrutura real.
 
 Bloqueio de provisionamento identificado: conta Supabase no limite de projetos gratuitos. Nenhum projeto existente foi pausado, excluído ou atualizado para plano pago. Integração real ainda depende de liberar uma vaga/selecionar projeto e configurar as variáveis; não deve ser considerada homologada até o teste remoto.
+
+## Ambiente de produção conectado (28/10/2026)
+
+SiteFactory conectado ao projeto Supabase existente `supabase-cordovan-engine` (`kxtdyqhorflvbhryyauu`), por autorização do proprietário. As duas migrations foram executadas com sucesso pelo SQL Editor. Antes da instalação foram verificadas as tabelas e funções existentes: as quatro tabelas `audit_*` foram preservadas. URL e chave publicável foram configuradas na Vercel, e APIFY_TOKEN foi salvo como segredo de produção.
+
+Validação remota: as tabelas internas negam acesso anônimo; `get_public_preview` aceita a chave pública e retorna null para token inválido. Endpoint Apify exige sessão autenticada (401 sem sessão). Publicação de infraestrutura: READY. A criação da senha do operador exige ação do proprietário no Supabase; os testes autenticados de ponta a ponta ainda dependem dessa conta.
+
+A execução antiga do Google Maps Scraper aparece no histórico de uso, mas a lista atual de runs está vazia por retenção. Para homologar importação de dados reais, será necessário fornecer um dataset atual autorizado ou executar uma nova coleta com limite/custo aprovado. Nenhuma nova coleta paga foi iniciada.
