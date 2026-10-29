@@ -73,3 +73,13 @@ Barbearias (`barber-premium`) e oficinas mecânicas (`mechanic-pro`) possuem pá
 Nome, endereço e cidade vêm do lead. `logoUrl` só é exibida quando `logoAuthorized` está habilitado. `mapsUrl` aceita links HTTPS do Google Maps; sem link, a localização usa nome e endereço, mediante clique do visitante. Sem endereço completo, nenhum pin exato é inventado. Campos também disponíveis no editor; até oito imagens HTTPS próprias na galeria. Apify aceita `logoUrl`/`logo`, `googleMapsUrl`/`mapsUrl`/`url` (apenas Maps). CSV aceita `logo_url`, `logo_autorizada=sim` e `maps_url`.
 
 Aplicar também a migração `supabase/migrations/202610280002_mechanic_template.sql`, que habilita o segundo template e sincroniza sua identificação no banco.
+
+## Operação validada em 29/10/2026
+
+Em Leads, escolha cidade, nicho, máximo por nicho e teto total em dólares; confirme a coleta e clique em Buscar e gerar demonstrações. A Apify respeita `maxTotalChargeUsd`. Resultados sem website informado e de nicho compatível recebem uma vitrine automaticamente. Ausência de website no Maps é indício: revise a presença digital no cadastro antes da abordagem comercial. Os demais resultados são preservados para revisão.
+
+A coleta continua na Apify com a página fechada; o processamento em lotes retoma ao abrir Leads. Cada lote é transacional e idempotente. Não é um processamento permanente em segundo plano. Links `/preview/token` ficam salvos em Vitrines e não mudam ao editar. Não há deploy nem chamada de IA por lead.
+
+Logo: enviar PNG/JPG/WebP, arrastar ou colar Ctrl+V no cadastro/editor. Conversão automática até 512px e 192KB, bucket público `sitefactory-logos` com escrita isolada por proprietário. O envio via colagem foi validado em produção, incluindo persistência e carregamento no mesmo link público. Imagens candidatas da fonte podem ser escolhidas manualmente; fotos do Google Maps não são identificadas automaticamente como logos.
+
+Migrations adicionais aplicadas: `202610280003_logo_uploads.sql` e `202610280004_prospect.sql`. Homologação real: 84 leads importados, 50 vitrines criadas, custo informado US$ 0,498 (teto US$ 0,50). O painel total inclui também um lead/vitrine fictício anterior.

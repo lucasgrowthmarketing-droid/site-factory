@@ -20,6 +20,7 @@ export const verifications = [
   "Necessita revisão",
 ] as const;
 export type Lead = {
+  logoCandidates?: string[];
   logoUrl?: string;
   logoAuthorized?: boolean;
   mapsUrl?: string;

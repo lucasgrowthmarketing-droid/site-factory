@@ -9,8 +9,10 @@ export default function LogoUpload({
   owner,
   onChange,
   onBusyChange,
+  candidates = [],
 }: {
   value?: string;
+  candidates?: string[];
   owner: string;
   onChange: (url: string, uploaded?: boolean) => void;
   onBusyChange: (busy: boolean) => void;
@@ -114,6 +116,35 @@ export default function LogoUpload({
         <p className="logo-upload-error" role="alert">
           {error}
         </p>
+      )}
+      {candidates.length > 0 && (
+        <details>
+          <summary>Ver imagens encontradas na fonte</summary>
+          <p className="hint">
+            Estas imagens podem ser fotos da empresa. Escolha apenas se for a
+            logo correta.
+          </p>
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            {candidates.map((url, i) => (
+              <button
+                type="button"
+                className="secondary"
+                disabled={busy}
+                key={url}
+                onClick={() => onChange(url, true)}
+                aria-label={`Usar imagem ${i + 1} como logo`}
+              >
+                <img
+                  src={url}
+                  alt={`Imagem candidata ${i + 1}`}
+                  width={56}
+                  height={56}
+                  style={{ objectFit: "contain" }}
+                />
+              </button>
+            ))}
+          </div>
+        </details>
       )}
       <details>
         <summary>Já tenho o link da logo</summary>

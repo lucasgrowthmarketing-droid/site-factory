@@ -1246,6 +1246,7 @@ export default function Workspace() {
             </div>
             <LogoUpload
               value={leadModal.logoUrl}
+              candidates={leadModal.logoCandidates}
               owner={user!}
               onBusyChange={setLogoBusy}
               onChange={(url, uploaded) =>
@@ -1449,6 +1450,7 @@ export default function Workspace() {
                     ["city", "Cidade"],
                     ["phone", "Telefone"],
                     ["address", "Endereço"],
+                    ["mapsUrl", "Link do Google Maps"],
                     [
                       "imageUrl",
                       "Imagem de destaque (URL HTTPS ou imagem padrão)",
@@ -1504,6 +1506,9 @@ export default function Workspace() {
               </div>
               <LogoUpload
                 value={editor.config.logoUrl}
+                candidates={
+                  db.leads.find((l) => l.id === editor.leadId)?.logoCandidates
+                }
                 owner={user!}
                 onBusyChange={setLogoBusy}
                 onChange={(url, uploaded) =>

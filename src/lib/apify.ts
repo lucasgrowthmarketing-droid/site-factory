@@ -45,6 +45,14 @@ export function normalizeApify(
       phone: str("phone", "phoneUnformatted", "telefone"),
       website,
       logoUrl: str("logoUrl", "logo"),
+      logoCandidates: [
+        str("imageUrl"),
+        ...(Array.isArray(r.imageUrls) ? r.imageUrls : []),
+      ]
+        .filter(
+          (v): v is string => typeof v === "string" && v.startsWith("https://"),
+        )
+        .slice(0, 4),
       logoAuthorized: r.logoAuthorized === true,
       mapsUrl: isMapsUrl(str("googleMapsUrl", "mapsUrl", "url"))
         ? str("googleMapsUrl", "mapsUrl", "url")
